@@ -3,33 +3,7 @@ import pandas as pd
 import plotly.express as px
 from collections import Counter
 from datetime import datetime
-import firebase_admin
-from firebase_admin import credentials, db
 import streamlit.components.v1 as components
-import json
-
-# Khởi tạo Firebase từ Streamlit Secrets
-if not firebase_admin._apps:
-    firebase_dict = json.loads(st.secrets["FIREBASE_KEY"])
-    cred = credentials.Certificate(firebase_dict)
-    firebase_admin.initialize_app(cred, {
-        'databaseURL': 'https://YOUR_PROJECT_ID.firebaseio.com'
-    })
-
-# Hàm Firebase chat
-def send_message(group, user, msg):
-    ref = db.reference(f"messages/{group}")
-    ref.push({
-        "user": user,
-        "msg": msg,
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
-
-def fetch_messages(group):
-    ref = db.reference(f"messages/{group}")
-    data = ref.get()
-    if not data: return []
-    return sorted(data.values(), key=lambda x: x['time'])
 
 # Giao diện
 st.set_page_config(page_title="Soi cầu lô đề chuyên nghiệp", layout="wide")
@@ -55,7 +29,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-menu = st.sidebar.selectbox("📋 Menu", ["Phân tích lô đề", "Đăng ký cá nhân", "Nhóm hội thoại"])
+menu = st.sidebar.selectbox("📋 Menu", ["Phân tích lô đề", "Đăng ký cá nhân"])
 
 st.markdown("<div class='main-title'>📊 Thống kê Lô Đề Miền Bắc</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Phân tích xác suất theo dữ liệu 10 năm</div>", unsafe_allow_html=True)
@@ -119,29 +93,3 @@ elif menu == "Đăng ký cá nhân":
             st.success("✅ Đăng ký thành công!")
         else:
             st.warning("⚠️ Vui lòng điền đủ thông tin!")
-
-elif menu == "Nhóm hội thoại":
-    st.subheader("💬 Nhóm hội thoại thành viên (Firebase Real-time)")
-
-    group = st.selectbox("Chọn nhóm", ["nhom1", "nhom2", "nhom3"])
-    username = st.text_input("Tên bạn", value="Ẩn danh")
-
-    with st.form(key="chat_form"):
-        message = st.text_input("💭 Nhập tin nhắn", placeholder="Nhập nội dung...")
-        submit = st.form_submit_button("Gửi")
-        if submit and message.strip():
-            send_message(group, username, message.strip())
-            st.success("📨 Tin nhắn đã gửi!")
-
-    st.markdown("---")
-    st.subheader(f"🗨 Tin nhắn trong nhóm `{group}`")
-    messages = fetch_messages(group)
-    chat_html = ""
-    for item in messages[-30:]:
-        chat_html += f"<p><strong>{item['user']}</strong> ({item['time']}): {item['msg']}</p>"
-
-    components.html(f"""
-        <div style='background:#f9f9f9;padding:15px;border-radius:10px;max-height:300px;overflow:auto'>
-            {chat_html}
-        </div>
-    """, height=350)
