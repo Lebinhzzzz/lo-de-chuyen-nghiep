@@ -79,17 +79,18 @@ elif menu == "Đăng ký cá nhân":
 elif menu == "Nhóm hội thoại":
     st.subheader("💬 Nhóm hội thoại thành viên")
 
-    message = st.text_input("💭 Nhập tin nhắn")
-    if st.button("Gửi"):
-        if message:
-            with open("chat_group.txt", "a") as f:
-                f.write(f"{datetime.now()} - {message}\n")
+    with st.form(key="chat_form"):
+        message = st.text_input("💭 Nhập tin nhắn", placeholder="Nhập nội dung...")
+        submit = st.form_submit_button("Gửi")
+        if submit and message.strip():
+            with open("chat_group.txt", "a", encoding="utf-8") as f:
+                f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message.strip()}\n")
             st.success("📨 Tin nhắn đã gửi!")
 
     st.markdown("### 📜 Lịch sử hội thoại")
     if os.path.exists("chat_group.txt"):
-        with open("chat_group.txt", "r") as f:
+        with open("chat_group.txt", "r", encoding="utf-8") as f:
             chat_history = f.read()
-        st.text_area("", chat_history, height=300, disabled=True)
+        st.text_area("📩 Nội dung hội thoại", chat_history, height=400, disabled=True, key='chat_display')
     else:
         st.info("💬 Chưa có tin nhắn nào.")
