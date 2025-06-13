@@ -1,92 +1,93 @@
-# lo_de_chuyen_nghiep_app.py
-
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 from collections import Counter
 from datetime import datetime
+import os
 
-# Cấu hình giao diện Streamlit
-st.set_page_config(page_title="Soi Cầu Lô Đề Chuyên Nghiệp", layout="wide")
+# Cấu hình giao diện
+st.set_page_config(page_title="Soi cầu lô đề chuyên nghiệp", layout="wide")
 
-# Tạo menu
-menu = st.sidebar.selectbox("📋 Chọn chức năng", ["Phân tích lô đề", "Đăng ký nhận thông tin"])
+# Menu chính
+menu = st.sidebar.selectbox("📋 Menu", ["Phân tích lô đề", "Đăng ký cá nhân", "Nhóm hội thoại"])
 
-# Giao diện đầu trang
 st.markdown("""
-    <h1 style='text-align: center; color: #e91e63;'>🔍 Soi Cầu - Lô Đề Miền Bắc</h1>
-    <p style='text-align: center; color: gray;'>Phân tích thống kê xác suất từ dữ liệu 10 năm</p>
+    <h1 style='text-align: center; color: #e91e63;'>📊 Thống kê Lô Đề Miền Bắc</h1>
+    <p style='text-align: center; color: gray;'>Phân tích xác suất theo dữ liệu 10 năm</p>
 """, unsafe_allow_html=True)
 
 # Hình ảnh minh họa
-st.image("https://i.imgur.com/q7vP0G8.png", use_column_width=True, caption="Thống kê soi cầu lô đề")
+st.image("https://i.imgur.com/q7vP0G8.png", use_column_width=True)
 
 if menu == "Phân tích lô đề":
-    # Upload file CSV
-    uploaded_file = st.file_uploader("📁 Tải lên dữ liệu lô đề (CSV)", type=["csv"])
+    uploaded_file = st.file_uploader("📂 Tải lên file CSV dữ liệu lô đề", type=["csv"])
 
     if uploaded_file:
-        try:
-            df = pd.read_csv(uploaded_file)
+        df = pd.read_csv(uploaded_file)
 
-            # Kiểm tra dữ liệu đầu vào
-            if 'Ngày' not in df.columns:
-                st.error("❌ File CSV cần có cột 'Ngày'!")
-                st.stop()
+        if 'Ngày' not in df.columns:
+            st.error("❗ Cần có cột 'Ngày' trong file CSV!")
+            st.stop()
 
-            # Chuyển cột 'Ngày' về kiểu datetime
-            df['Ngày'] = pd.to_datetime(df['Ngày'], errors='coerce')
-            df = df.dropna(subset=['Ngày'])
+        df['Ngày'] = pd.to_datetime(df['Ngày'], errors='coerce')
+        df = df.dropna(subset=['Ngày'])
 
-            # Chọn ngày phân tích
-            selected_date = st.date_input("📅 Chọn ngày muốn phân tích", value=df['Ngày'].max().date())
+        selected_date = st.date_input("📅 Chọn ngày muốn phân tích", value=df['Ngày'].max().date())
+        df_filtered = df[df['Ngày'] < pd.to_datetime(selected_date)]
 
-            # Lọc dữ liệu trước ngày được chọn
-            df_filtered = df[df['Ngày'] < pd.to_datetime(selected_date)]
+        all_los = []
+        for _, row in df_filtered.iterrows():
+            for val in row[1:]:
+                if pd.notna(val):
+                    lo = str(val).zfill(2)
+                    if lo.isdigit() and len(lo) == 2:
+                        all_los.append(lo)
 
-            # Trích các con lô trong các dòng
-            all_los = []
-            for _, row in df_filtered.iterrows():
-                for val in row[1:]:  # Bỏ cột 'Ngày'
-                    if pd.notna(val):
-                        lo = str(val).zfill(2)
-                        if lo.isdigit() and len(lo) == 2:
-                            all_los.append(lo)
+        total = len(all_los)
+        freq = Counter(all_los)
+        prob = {lo: round((count / total) * 100, 2) for lo, count in freq.items()}
+        sorted_prob = sorted(prob.items(), key=lambda x: x[1], reverse=True)
 
-            total = len(all_los)
-            freq = Counter(all_los)
-            prob = {lo: round((count / total) * 100, 3) for lo, count in freq.items()}
-            sorted_prob = sorted(prob.items(), key=lambda x: x[1], reverse=True)
+        st.subheader("🔢 Top 20 lô có xác suất cao")
+        df_top20 = pd.DataFrame(sorted_prob[:20], columns=["Lô", "Xác Suất (%)"])
+        st.dataframe(df_top20, use_container_width=True)
 
-            # Hiển thị thống kê
-            st.subheader("📊 Top 20 con lô có xác suất cao")
-            df_top20 = pd.DataFrame(sorted_prob[:20], columns=["Lô", "Xác Suất (%)"])
-            st.dataframe(df_top20, use_container_width=True)
+        fig = px.bar(df_top20, x="Lô", y="Xác Suất (%)", color="Xác Suất (%)",
+                     color_continuous_scale="reds", title="Biểu đồ xác suất")
+        st.plotly_chart(fig, use_container_width=True)
 
-            # Biểu đồ
-            fig = px.bar(df_top20, x="Lô", y="Xác Suất (%)", color="Xác Suất (%)",
-                         color_continuous_scale="reds", title="Biểu đồ xác suất xuất hiện")
-            st.plotly_chart(fig, use_container_width=True)
+        top3 = ", ".join([x[0] for x in sorted_prob[:3]])
+        st.success(f"🎯 Gợi ý hôm nay: {top3}")
 
-            # Gợi ý top 3
-            st.subheader("🎯 Gợi ý 3 con lô hôm nay")
-            top3 = ", ".join([x[0] for x in sorted_prob[:3]])
-            st.success(f"🔮 Nên chú ý: {top3}")
-
-        except Exception as e:
-            st.error(f"Đã xảy ra lỗi: {e}")
-    else:
-        st.info("⬆️ Vui lòng tải lên file dữ liệu để bắt đầu.")
-
-elif menu == "Đăng ký nhận thông tin":
-    st.subheader("📨 Đăng ký nhận thông tin thống kê lô đề")
+elif menu == "Đăng ký cá nhân":
+    st.subheader("🧍 Đăng ký tài khoản cá nhân")
     name = st.text_input("👤 Họ và tên")
-    phone = st.text_input("📞 Số điện thoại")
     email = st.text_input("📧 Email")
-    group = st.selectbox("💬 Bạn muốn tham gia nhóm nào?", ["Telegram", "Zalo", "Facebook", "Không tham gia"])
+    phone = st.text_input("📱 Số điện thoại")
 
     if st.button("Đăng ký"):
-        if name and (phone or email):
-            st.success(f"✅ Cảm ơn {name}! Bạn đã đăng ký nhận thông tin.")
+        if name and (email or phone):
+            user_info = f"{datetime.now()}, {name}, {email}, {phone}\n"
+            with open("users.csv", "a") as f:
+                f.write(user_info)
+            st.success("✅ Đăng ký thành công!")
         else:
-            st.warning("⚠️ Vui lòng điền ít nhất họ tên và số điện thoại hoặc email.")
+            st.warning("⚠️ Vui lòng điền đủ thông tin!")
+
+elif menu == "Nhóm hội thoại":
+    st.subheader("💬 Nhóm hội thoại thành viên")
+
+    message = st.text_input("💭 Nhập tin nhắn")
+    if st.button("Gửi"):
+        if message:
+            with open("chat_group.txt", "a") as f:
+                f.write(f"{datetime.now()} - {message}\n")
+            st.success("📨 Tin nhắn đã gửi!")
+
+    st.markdown("### 📜 Lịch sử hội thoại")
+    if os.path.exists("chat_group.txt"):
+        with open("chat_group.txt", "r") as f:
+            chat_history = f.read()
+        st.text_area("", chat_history, height=300, disabled=True)
+    else:
+        st.info("💬 Chưa có tin nhắn nào.")
