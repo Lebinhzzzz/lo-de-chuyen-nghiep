@@ -4,6 +4,7 @@ import plotly.express as px
 from collections import Counter
 from datetime import datetime
 import os
+import time
 
 # Cấu hình giao diện
 st.set_page_config(page_title="Soi cầu lô đề chuyên nghiệp", layout="wide")
@@ -77,7 +78,9 @@ elif menu == "Đăng ký cá nhân":
             st.warning("⚠️ Vui lòng điền đủ thông tin!")
 
 elif menu == "Nhóm hội thoại":
-    st.subheader("💬 Nhóm hội thoại thành viên")
+    st.subheader("💬 Nhóm hội thoại thành viên (thời gian thực)")
+
+    chat_placeholder = st.empty()
 
     with st.form(key="chat_form"):
         message = st.text_input("💭 Nhập tin nhắn", placeholder="Nhập nội dung...")
@@ -87,10 +90,13 @@ elif menu == "Nhóm hội thoại":
                 f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message.strip()}\n")
             st.success("📨 Tin nhắn đã gửi!")
 
-    st.markdown("### 📜 Lịch sử hội thoại")
-    if os.path.exists("chat_group.txt"):
-        with open("chat_group.txt", "r", encoding="utf-8") as f:
-            chat_history = f.read()
-        st.text_area("📩 Nội dung hội thoại", chat_history, height=400, disabled=True, key='chat_display')
-    else:
-        st.info("💬 Chưa có tin nhắn nào.")
+    def load_chat():
+        if os.path.exists("chat_group.txt"):
+            with open("chat_group.txt", "r", encoding="utf-8") as f:
+                return f.read()
+        return "💬 Chưa có tin nhắn nào."
+
+    for _ in range(30):  # Auto-refresh tối đa 30 lần (~30 giây nếu delay 1s)
+        chat_content = load_chat()
+        chat_placeholder.text_area("📩 Nội dung hội thoại", chat_content, height=400, disabled=True)
+        time.sleep(1)
