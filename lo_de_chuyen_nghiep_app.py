@@ -46,14 +46,16 @@ if menu == "Phân tích lô đề":
         total = len(all_los)
         freq = Counter(all_los)
         prob = {lo: round((count / total) * 100, 2) for lo, count in freq.items()}
-        sorted_prob = sorted(prob.items(), key=lambda x: x[1], reverse=True)
+        sorted_items = sorted(freq.items(), key=lambda x: x[1], reverse=True)
+        sorted_prob = [(lo, prob[lo]) for lo, _ in sorted_items]
 
         st.subheader("🔢 Top 20 lô có xác suất cao")
         df_top20 = pd.DataFrame(sorted_prob[:20], columns=["Lô", "Xác Suất (%)"])
+        df_top20['Số lần xuất hiện'] = [freq[lo] for lo in df_top20['Lô']]
         st.dataframe(df_top20, use_container_width=True)
 
-        fig = px.bar(df_top20, x="Lô", y="Xác Suất (%)", color="Xác Suất (%)",
-                     color_continuous_scale="reds", title="Biểu đồ xác suất")
+        fig = px.bar(df_top20, x="Lô", y="Số lần xuất hiện", color="Xác Suất (%)",
+                     color_continuous_scale="reds", title="Biểu đồ tần suất và xác suất")
         st.plotly_chart(fig, use_container_width=True)
 
         top3 = ", ".join([x[0] for x in sorted_prob[:3]])
