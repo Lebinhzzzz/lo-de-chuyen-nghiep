@@ -6,12 +6,10 @@ from datetime import datetime
 import firebase_admin
 from firebase_admin import credentials, db
 import streamlit.components.v1 as components
-import json
 
 # Khởi tạo Firebase từ Streamlit Secrets
 if not firebase_admin._apps:
-    firebase_json = st.secrets["FIREBASE_KEY"]
-    cred = credentials.Certificate(json.loads(firebase_json))
+    cred = credentials.Certificate(st.secrets["FIREBASE_KEY"])
     firebase_admin.initialize_app(cred, {
         'databaseURL': 'https://YOUR_PROJECT_ID.firebaseio.com'
     })
