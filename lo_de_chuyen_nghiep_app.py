@@ -5,7 +5,7 @@ from collections import Counter
 from datetime import datetime
 import streamlit.components.v1 as components
 
-# Giao diện
+# Cấu hình giao diện
 st.set_page_config(page_title="Soi cầu lô đề chuyên nghiệp", layout="wide")
 st.markdown("""
     <style>
@@ -26,15 +26,22 @@ st.markdown("""
             border-radius: 8px;
             padding: 0.5em 1em;
         }
+        .stApp {
+            background-image: url('https://images.unsplash.com/photo-1517816743773-6e0fd518b4a6');
+            background-size: cover;
+            background-position: center;
+        }
+        header, footer {visibility: hidden;}
     </style>
 """, unsafe_allow_html=True)
 
+# Logo và menu
+st.sidebar.image("/mnt/data/40abd5fb-56fd-45ad-a8bd-8bce72d96b04.png", width=200)
 menu = st.sidebar.selectbox("📋 Menu", ["Phân tích lô đề", "Đăng ký cá nhân"])
 
+# Tiêu đề trang
 st.markdown("<div class='main-title'>📊 Thống kê Lô Đề Miền Bắc</div>", unsafe_allow_html=True)
 st.markdown("<div class='subtitle'>Phân tích xác suất theo dữ liệu 10 năm</div>", unsafe_allow_html=True)
-
-st.image("https://i.imgur.com/q7vP0G8.png", use_column_width=True)
 
 if menu == "Phân tích lô đề":
     uploaded_file = st.file_uploader("📂 Tải lên file CSV dữ liệu lô đề", type=["csv"])
