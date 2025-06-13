@@ -3,21 +3,61 @@ import pandas as pd
 import plotly.express as px
 from collections import Counter
 from datetime import datetime
-import os
-import time
+import firebase_admin
+from firebase_admin import credentials, db
+import streamlit.components.v1 as components
 
-# Cấu hình giao diện
+# Khởi tạo Firebase
+if not firebase_admin._apps:
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://YOUR_PROJECT_ID.firebaseio.com'
+    })
+
+# Hàm Firebase chat
+def send_message(group, user, msg):
+    ref = db.reference(f"messages/{group}")
+    ref.push({
+        "user": user,
+        "msg": msg,
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+
+def fetch_messages(group):
+    ref = db.reference(f"messages/{group}")
+    data = ref.get()
+    if not data: return []
+    return sorted(data.values(), key=lambda x: x['time'])
+
+# Giao diện
 st.set_page_config(page_title="Soi cầu lô đề chuyên nghiệp", layout="wide")
-
-# Menu chính
-menu = st.sidebar.selectbox("📋 Menu", ["Phân tích lô đề", "Đăng ký cá nhân", "Nhóm hội thoại"])
-
 st.markdown("""
-    <h1 style='text-align: center; color: #e91e63;'>📊 Thống kê Lô Đề Miền Bắc</h1>
-    <p style='text-align: center; color: gray;'>Phân tích xác suất theo dữ liệu 10 năm</p>
+    <style>
+        .main-title {
+            text-align: center;
+            color: #e91e63;
+            font-size: 3em;
+            font-weight: bold;
+        }
+        .subtitle {
+            text-align: center;
+            color: gray;
+            font-size: 1.2em;
+        }
+        .stButton>button {
+            background-color: #e91e63;
+            color: white;
+            border-radius: 8px;
+            padding: 0.5em 1em;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
-# Hình ảnh minh họa
+menu = st.sidebar.selectbox("📋 Menu", ["Phân tích lô đề", "Đăng ký cá nhân", "Nhóm hội thoại"])
+
+st.markdown("<div class='main-title'>📊 Thống kê Lô Đề Miền Bắc</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>Phân tích xác suất theo dữ liệu 10 năm</div>", unsafe_allow_html=True)
+
 st.image("https://i.imgur.com/q7vP0G8.png", use_column_width=True)
 
 if menu == "Phân tích lô đề":
@@ -53,10 +93,11 @@ if menu == "Phân tích lô đề":
         st.subheader("🔢 Top 20 lô có xác suất cao")
         df_top20 = pd.DataFrame(sorted_prob[:20], columns=["Lô", "Xác Suất (%)"])
         df_top20['Số lần xuất hiện'] = [freq[lo] for lo in df_top20['Lô']]
-        st.dataframe(df_top20, use_container_width=True)
+        st.dataframe(df_top20, use_container_width=True, height=400)
 
         fig = px.bar(df_top20, x="Lô", y="Số lần xuất hiện", color="Xác Suất (%)",
                      color_continuous_scale="reds", title="Biểu đồ tần suất và xác suất")
+        fig.update_layout(plot_bgcolor='#fff', paper_bgcolor='#fdfdfd')
         st.plotly_chart(fig, use_container_width=True)
 
         top3 = ", ".join([x[0] for x in sorted_prob[:3]])
@@ -78,25 +119,27 @@ elif menu == "Đăng ký cá nhân":
             st.warning("⚠️ Vui lòng điền đủ thông tin!")
 
 elif menu == "Nhóm hội thoại":
-    st.subheader("💬 Nhóm hội thoại thành viên (thời gian thực)")
+    st.subheader("💬 Nhóm hội thoại thành viên (Firebase Real-time)")
 
-    chat_placeholder = st.empty()
+    group = st.selectbox("Chọn nhóm", ["nhom1", "nhom2", "nhom3"])
+    username = st.text_input("Tên bạn", value="Ẩn danh")
 
     with st.form(key="chat_form"):
         message = st.text_input("💭 Nhập tin nhắn", placeholder="Nhập nội dung...")
         submit = st.form_submit_button("Gửi")
         if submit and message.strip():
-            with open("chat_group.txt", "a", encoding="utf-8") as f:
-                f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message.strip()}\n")
+            send_message(group, username, message.strip())
             st.success("📨 Tin nhắn đã gửi!")
 
-    def load_chat():
-        if os.path.exists("chat_group.txt"):
-            with open("chat_group.txt", "r", encoding="utf-8") as f:
-                return f.read()
-        return "💬 Chưa có tin nhắn nào."
+    st.markdown("---")
+    st.subheader(f"🗨 Tin nhắn trong nhóm `{group}`")
+    messages = fetch_messages(group)
+    chat_html = ""
+    for item in messages[-30:]:
+        chat_html += f"<p><strong>{item['user']}</strong> ({item['time']}): {item['msg']}</p>"
 
-    for _ in range(30):  # Auto-refresh tối đa 30 lần (~30 giây nếu delay 1s)
-        chat_content = load_chat()
-        chat_placeholder.text_area("📩 Nội dung hội thoại", chat_content, height=400, disabled=True)
-        time.sleep(1)
+    components.html(f"""
+        <div style='background:#f9f9f9;padding:15px;border-radius:10px;max-height:300px;overflow:auto'>
+            {chat_html}
+        </div>
+    """, height=350)
